@@ -52,6 +52,10 @@ const StudentProfile: React.FC = () => {
                  setSuccess("Profile updated successfully!");
                  // update user state to reflect changes immediately
                  setUser(updatedUser);
+                 // Reload to reflect changes everywhere
+                 setTimeout(() => {
+                    window.location.reload();
+                 }, 1500);
             }
         }
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
@@ -5,11 +6,14 @@ import { Message } from '../types';
 import ChatMessage from '../components/ChatMessage';
 import { supabase } from '../services/supabaseClient';
 import UserAvatar from '../components/UserAvatar';
+import { GoogleGenAI, Chat, Content } from '@google/genai';
 
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const chatRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,11 +28,11 @@ const ChatPage: React.FC = () => {
           .eq('user_id', user.id)
           .order('timestamp', { ascending: true });
 
+        let formattedMessages: Message[] = [];
         if (error) {
           console.error("Error fetching messages:", error);
-          setMessages([]);
-        } else {
-          const formattedMessages = messagesData.map(m => ({
+        } else if (messagesData) {
+          formattedMessages = messagesData.map(m => ({
             id: m.id.toString(),
             text: m.text,
             sender: m.sender as 'user' | 'ai',
@@ -36,6 +40,22 @@ const ChatPage: React.FC = () => {
           }));
           setMessages(formattedMessages);
         }
+        
+        // Initialize Gemini Chat
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const history: Content[] = formattedMessages.map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.text }],
+        }));
+
+        chatRef.current = ai.chats.create({
+            model: 'gemini-2.5-flash',
+            history: history,
+            config: {
+                systemInstruction: 'You are Lumyn, a friendly and empathetic AI companion for students. Provide supportive and understanding responses. Do not give medical advice. Keep your responses concise and helpful, like a supportive friend. Use emojis occasionally to convey warmth and empathy.',
+            },
+        });
+
       } else {
         setMessages([]);
       }
@@ -50,7 +70,7 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleNewChat = async () => {
      if (!user) {
@@ -60,12 +80,22 @@ const ChatPage: React.FC = () => {
       // Optimistically clear UI, then delete from DB
       setMessages([]);
       await supabase.from('messages').delete().eq('user_id', user.id);
+      
+      // Re-initialize chat
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      chatRef.current = ai.chats.create({
+        model: 'gemini-2.5-flash',
+        history: [],
+        config: {
+            systemInstruction: 'You are Lumyn, a friendly and empathetic AI companion for students. Provide supportive and understanding responses. Do not give medical advice. Keep your responses concise and helpful, like a supportive friend. Use emojis occasionally to convey warmth and empathy.',
+        },
+    });
   };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
-    if (!trimmedInput) return;
+    if (!trimmedInput || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -76,16 +106,76 @@ const ChatPage: React.FC = () => {
     
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setInput('');
+    setIsLoading(true);
     
-    if (user) {
+    // Save user message and get AI response
+    if (user && chatRef.current) {
         await supabase.from('messages').insert({
             text: userMessage.text,
             sender: 'user',
             user_id: user.id,
             timestamp: userMessage.timestamp.toISOString(),
         });
+
+        try {
+            const response = await chatRef.current.sendMessage({ message: trimmedInput });
+            const aiText = response.text;
+            
+            const aiMessage: Message = {
+                id: Date.now().toString() + '-ai',
+                text: aiText,
+                sender: 'ai',
+                timestamp: new Date(),
+            };
+
+            setMessages(prev => [...prev, aiMessage]);
+
+            await supabase.from('messages').insert({
+                text: aiMessage.text,
+                sender: 'ai',
+                user_id: user.id,
+                timestamp: aiMessage.timestamp.toISOString(),
+            });
+
+        } catch (error) {
+            console.error("Error from Gemini API:", error);
+            const errorMessage: Message = {
+                id: Date.now().toString() + '-error',
+                text: "Sorry, I'm having trouble connecting right now. Please try again later.",
+                sender: 'ai',
+                timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    } else {
+        setIsLoading(false);
     }
   };
+
+  const TypingIndicator = () => (
+    <div className="flex items-end gap-3">
+      <div
+        className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+        data-alt="AI avatar with a calming abstract pattern"
+        style={{
+          backgroundImage:
+            'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBSjWuE2zvdtJW4WaYHs2F_o-zgPzIE2cF0YylVbqMCEoAGVpwLs5cSLv8yVd1wQmsrnlzaXJeZISAGyiQupdO5x8CbfAD0xH5hVQ7vzfhsbVHY9d8pgI9a5GKKGg6C_QfVYN_OAzYxuhcnFNlgVI1ZuOn8xi5kJDwiR4gO7gwFmMwP4b9BsPe8N0sx6stuwmhNkWBQxQ2iUe8KWv2Opzmao1rsUAtrLRGKnRaCFO-lDbyQzElL1HQs2YzLPjegra1724m2t5mFUxc")',
+        }}
+      ></div>
+      <div className="flex flex-1 flex-col items-start gap-1.5">
+        <p className="text-slate-500 text-[13px] font-medium leading-normal dark:text-slate-400">Lumyn AI</p>
+        <div className="max-w-md rounded-xl rounded-bl-none bg-slate-100 px-4 py-3 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+          <div className="flex items-center justify-center gap-1.5 h-6">
+            <span className="h-2 w-2 rounded-full bg-slate-400 animate-pulse [animation-delay:-0.3s]"></span>
+            <span className="h-2 w-2 rounded-full bg-slate-400 animate-pulse [animation-delay:-0.15s]"></span>
+            <span className="h-2 w-2 rounded-full bg-slate-400 animate-pulse"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
 
   return (
@@ -138,12 +228,12 @@ const ChatPage: React.FC = () => {
             <div className="flex items-center gap-4">
                <div className="relative">
                  <div className="bg-primary/20 text-primary flex items-center justify-center aspect-square rounded-full size-10">
-                    <span className="material-symbols-outlined text-2xl">edit_note</span>
+                    <span className="material-symbols-outlined text-2xl">spark</span>
                  </div>
               </div>
               <div>
-                <h2 className="text-slate-900 text-base font-bold leading-tight dark:text-white">My Thoughts</h2>
-                <p className="text-slate-500 text-sm font-normal leading-normal dark:text-slate-400">A private space to reflect</p>
+                <h2 className="text-slate-900 text-base font-bold leading-tight dark:text-white">AI Companion</h2>
+                <p className="text-slate-500 text-sm font-normal leading-normal dark:text-slate-400">A friendly space to talk</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -157,7 +247,8 @@ const ChatPage: React.FC = () => {
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} user={user} />
               ))}
-               <div ref={messagesEndRef} />
+              {isLoading && <TypingIndicator />}
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
@@ -173,7 +264,7 @@ const ChatPage: React.FC = () => {
                     onChange={(e) => setInput(e.target.value)}
                   />
                 </div>
-                <button type="submit" disabled={!input.trim()} className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-primary text-white disabled:opacity-50">
+                <button type="submit" disabled={!input.trim() || isLoading} className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-primary text-white disabled:opacity-50">
                   <span className="material-symbols-outlined text-xl">send</span>
                 </button>
               </div>
