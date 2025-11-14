@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 
@@ -58,8 +57,8 @@ const FeaturesPage: React.FC = () => {
                 <div className="flex flex-col gap-12">
                     <FeatureCard
                         icon="chat"
-                        title="24/7 AI Chat Companion"
-                        description="Our core feature is an AI-powered companion available around the clock. Powered by advanced language models, it offers a safe space to talk, process your thoughts, and receive empathetic support. Whether it's late-night anxiety or pre-exam stress, you're never alone."
+                        title="24/7 Private Chat Log"
+                        description="Our core feature is a private and secure chat log, available around the clock. It offers a safe space to write down your thoughts, process feelings, and keep a record of your reflections. Whether it's late-night anxiety or pre-exam stress, you have a place to express yourself without judgment."
                         imageUrl="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=2070&auto=format&fit=crop"
                     />
                      <FeatureCard

@@ -1,30 +1,19 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { Message } from '../types';
 import ChatMessage from '../components/ChatMessage';
-import { getChatResponse } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import UserAvatar from '../components/UserAvatar';
 
 const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const initialAiMessage: Message = {
-    id: '1',
-    text: "Hello! I'm here to listen. How are you feeling today?",
-    sender: 'ai',
-    timestamp: new Date(),
-  };
 
   useEffect(() => {
     const fetchSessionAndMessages = async () => {
-      setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
@@ -37,20 +26,19 @@ const ChatPage: React.FC = () => {
 
         if (error) {
           console.error("Error fetching messages:", error);
-          setMessages([initialAiMessage]);
+          setMessages([]);
         } else {
           const formattedMessages = messagesData.map(m => ({
             id: m.id.toString(),
             text: m.text,
-            sender: m.sender,
+            sender: m.sender as 'user' | 'ai',
             timestamp: new Date(m.timestamp),
           }));
-          setMessages(formattedMessages.length > 0 ? formattedMessages : [initialAiMessage]);
+          setMessages(formattedMessages);
         }
       } else {
-        setMessages([initialAiMessage]);
+        setMessages([]);
       }
-      setIsLoading(false);
     };
     fetchSessionAndMessages();
   }, []);
@@ -64,34 +52,31 @@ const ChatPage: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleNewChat = () => {
-    setMessages([initialAiMessage]);
+  const handleNewChat = async () => {
+     if (!user) {
+        setMessages([]);
+        return;
+     }
+      // Optimistically clear UI, then delete from DB
+      setMessages([]);
+      await supabase.from('messages').delete().eq('user_id', user.id);
   };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedInput = input.trim();
-    if (!trimmedInput || isLoading) return;
+    if (!trimmedInput) return;
 
-    // Capture the current input before clearing the state.
-    const messageToSend = trimmedInput;
-    
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: messageToSend,
+      text: trimmedInput,
       sender: 'user',
       timestamp: new Date(),
     };
     
-    // Capture the history for the API call BEFORE updating the UI state.
-    const historyForApi = [...messages];
-
-    // Update the UI immediately with the user's message and clear the input.
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setInput('');
-    setIsLoading(true);
     
-    // Save the user's message to the database.
     if (user) {
         await supabase.from('messages').insert({
             text: userMessage.text,
@@ -99,42 +84,6 @@ const ChatPage: React.FC = () => {
             user_id: user.id,
             timestamp: userMessage.timestamp.toISOString(),
         });
-    }
-
-    try {
-      // Call the Gemini API with the correct history and the new message.
-      const aiResponseText = await getChatResponse(historyForApi, messageToSend);
-      
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: aiResponseText,
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-
-      // Add the AI's response to the UI.
-      setMessages((prev) => [...prev, aiMessage]);
-      
-      // Save the AI's response to the database.
-      if (user) {
-          await supabase.from('messages').insert({
-              text: aiMessage.text,
-              sender: 'ai',
-              user_id: user.id,
-              timestamp: aiMessage.timestamp.toISOString(),
-          });
-      }
-    } catch (error) {
-      console.error("Failed to get AI response:", error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "I'm sorry, something went wrong. Please try again.",
-        sender: 'ai',
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -187,13 +136,14 @@ const ChatPage: React.FC = () => {
           {/* Chat Header */}
           <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-3 dark:border-slate-800 dark:bg-background-dark/80 backdrop-blur-sm">
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuA_4j0huPzSUzIdJDWzHVdfY8h_lwl410lZp2y_1UmKb2-orxeGUAwlx69tSDTwylltYaxmE-SV5137DDWYdiyfHPm4A8b-jbftic0MOyiYeTM5wGwqviUBiQZyF--1G2mV91SYvCSLCyZGr1K8-iZd5Mc80s7w31lA7ocR1VjQXC7SnMrvzENs51D7Sm7ELCIpR2pL09itFKoQr8lXoh9Y_m18L4Q3Pk4JGa32VDgsfNwZY3fWbialGrazr1fSPu-OiozRg-4hDoY")'}}></div>
-                <div className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-white bg-green-500 dark:border-background-dark"></div>
+               <div className="relative">
+                 <div className="bg-primary/20 text-primary flex items-center justify-center aspect-square rounded-full size-10">
+                    <span className="material-symbols-outlined text-2xl">edit_note</span>
+                 </div>
               </div>
               <div>
-                <h2 className="text-slate-900 text-base font-bold leading-tight dark:text-white">Lumyn AI</h2>
-                <p className="text-slate-500 text-sm font-normal leading-normal dark:text-slate-400">Here to listen</p>
+                <h2 className="text-slate-900 text-base font-bold leading-tight dark:text-white">My Thoughts</h2>
+                <p className="text-slate-500 text-sm font-normal leading-normal dark:text-slate-400">A private space to reflect</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -207,19 +157,6 @@ const ChatPage: React.FC = () => {
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} user={user} />
               ))}
-              {isLoading && messages.length > 0 && messages[messages.length - 1].sender === 'user' && (
-                <div className="flex items-end gap-3">
-                   <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDD7RcXK5C8RLUsb2D8JXpyVBmg-3uYauQb6wJSO8QYCZNSfVlu4V2GDCbXyqlSc2DxGiFLcQcLTA7c-lFvl0bUr_ibaW9wbOPIn-rcJURNec0Hg-8kS8XkxXZBVYtM8p4OjAmnm3jzZ8YSL-9p_7kri7z0MXnMyHiuaKQkUPJWIMAiVl2eD7C65lvvIH1zqd3MIhH-u-ToL4hVJTMUU-ipLCbOnwY4u3GquCKAJz32ImIXbW9-j0G5vvtC21Q9X0RvXGjMgB3Xgt8")' }}></div>
-                  <div className="flex flex-1 flex-col items-start gap-1.5">
-                    <p className="text-slate-500 text-[13px] font-medium leading-normal dark:text-slate-400">Lumyn AI</p>
-                    <div className="max-w-md rounded-xl rounded-bl-none bg-slate-100 px-4 py-3 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
-                      <p className="text-base font-normal leading-relaxed flex items-center gap-2">
-                        <span className="animate-pulse">...</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
                <div ref={messagesEndRef} />
             </div>
           </div>
@@ -234,10 +171,9 @@ const ChatPage: React.FC = () => {
                     placeholder="Tell me what's on your mind..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    disabled={isLoading}
                   />
                 </div>
-                <button type="submit" disabled={isLoading || !input.trim()} className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-primary text-white disabled:opacity-50">
+                <button type="submit" disabled={!input.trim()} className="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-primary text-white disabled:opacity-50">
                   <span className="material-symbols-outlined text-xl">send</span>
                 </button>
               </div>

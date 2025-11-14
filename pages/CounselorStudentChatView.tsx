@@ -4,7 +4,6 @@ import type { User } from '@supabase/supabase-js';
 import { Message, Student } from '../types';
 import ChatMessage from '../components/ChatMessage';
 import { supabase } from '../services/supabaseClient';
-import { summarizeChatHistory } from '../services/geminiService';
 import UserAvatar from '../components/UserAvatar';
 
 const CounselorStudentChatView: React.FC = () => {
@@ -15,10 +14,6 @@ const CounselorStudentChatView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
-
-  // State for AI Summary
-  const [summary, setSummary] = useState<string | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState(false);
 
   useEffect(() => {
     if (!studentId) {
@@ -78,21 +73,6 @@ const CounselorStudentChatView: React.FC = () => {
     fetchData();
   }, [studentId]);
 
-  const handleGetSummary = async () => {
-    if (messages.length === 0) return;
-    setIsSummarizing(true);
-    setSummary(null);
-    try {
-        const result = await summarizeChatHistory(messages);
-        setSummary(result);
-    } catch (error) {
-        console.error(error);
-        setSummary("Failed to generate summary.");
-    } finally {
-        setIsSummarizing(false);
-    }
-  };
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -119,37 +99,6 @@ const CounselorStudentChatView: React.FC = () => {
              {counselor && <UserAvatar avatarUrl={counselor?.user_metadata?.avatar_url} name={counselor?.user_metadata?.full_name} size="size-10" />}
           </div>
         </header>
-        
-        {/* Summary Section */}
-        <div className="p-8 pb-0">
-            <div className="mx-auto max-w-3xl">
-                <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200/80 dark:border-slate-800/80">
-                    <div className="flex justify-between items-center gap-4">
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">AI-Generated Summary</h3>
-                        <button
-                            onClick={handleGetSummary}
-                            disabled={isSummarizing || loading || messages.length === 0}
-                            className="flex items-center gap-2 rounded-lg bg-c-primary/10 dark:bg-c-primary/20 px-4 py-2 text-sm font-semibold text-c-primary dark:text-indigo-300 hover:bg-c-primary/20 dark:hover:bg-c-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <span className="material-symbols-outlined text-base">auto_awesome</span>
-                            <span>{isSummarizing ? 'Analyzing...' : (summary ? 'Regenerate' : 'Generate Summary')}</span>
-                        </button>
-                    </div>
-                    {isSummarizing && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Lumyn is analyzing the conversation. This may take a moment...</p>}
-                    {summary && (
-                        <div className="mt-4 space-y-2 text-slate-700 dark:text-slate-300">
-                            {summary.split('*').filter(s => s.trim()).map((item, index) => (
-                                <div key={index} className="flex items-start">
-                                    <span className="mr-2 mt-1 text-c-primary">•</span>
-                                    <p className="flex-1 text-sm">{item.trim()}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-
 
         {/* Message List */}
         <div className="flex-1 overflow-y-auto p-8">

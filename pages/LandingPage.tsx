@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -47,7 +46,7 @@ const LandingPage: React.FC = () => {
                   <div className="flex flex-1 flex-col gap-6 @[864px]:justify-center">
                     <div className="flex flex-col gap-4 text-left">
                       <h1 className="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em] @[480px]:text-5xl">
-                        Your AI Companion for Emotional Support
+                        Your Companion for Emotional Support
                       </h1>
                       <p className="text-slate-600 dark:text-slate-400 text-base font-normal leading-normal @[480px]:text-lg">
                         Chat, reflect, and connect — anytime you need to talk. Lumyn offers a safe space for students to explore their feelings and get the support they deserve.
@@ -55,7 +54,7 @@ const LandingPage: React.FC = () => {
                     </div>
                     <div className="flex-wrap gap-3 flex">
                       <Link to="/chat" className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em]">
-                        <span className="truncate">Start Chat</span>
+                        <span className="truncate">Start Writing</span>
                       </Link>
                       <button onClick={scrollToFeatures} className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-slate-200/50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-base font-bold leading-normal tracking-[0.015em]">
                         <span className="truncate">Learn More</span>
@@ -80,8 +79,8 @@ const LandingPage: React.FC = () => {
                       <span className="material-symbols-outlined !text-3xl">chat</span>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <h3 className="text-slate-900 dark:text-white text-base font-bold leading-tight">24/7 AI Chat</h3>
-                      <p className="text-slate-500 dark:text-slate-400 text-sm font-normal leading-normal">Our AI is always available to listen and offer support, day or night.</p>
+                      <h3 className="text-slate-900 dark:text-white text-base font-bold leading-tight">24/7 Chat Log</h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-sm font-normal leading-normal">A secure space is always available to log your thoughts and feelings, day or night.</p>
                     </div>
                   </div>
                   <div className="flex flex-1 gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex-col">

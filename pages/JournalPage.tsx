@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { JournalEntry } from '../types';
 import type { User } from '@supabase/supabase-js';
-import { analyzeJournalEntry } from '../services/geminiService';
 import UserAvatar from '../components/UserAvatar';
 
 const JournalPage: React.FC = () => {
@@ -12,10 +11,6 @@ const JournalPage: React.FC = () => {
     const [currentEntry, setCurrentEntry] = useState<Partial<JournalEntry> | null>(null);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
-
-    // New state for Gemini analysis
-    const [analysis, setAnalysis] = useState<string | null>(null);
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
 
     useEffect(() => {
         const fetchUserAndEntries = async () => {
@@ -44,12 +39,10 @@ const JournalPage: React.FC = () => {
 
     const handleSelectEntry = (entry: JournalEntry) => {
         setCurrentEntry(entry);
-        setAnalysis(null); // Clear previous analysis
     };
 
     const handleNewEntry = () => {
         setCurrentEntry({ id: undefined, title: '', content: '' });
-        setAnalysis(null); // Clear previous analysis
     };
 
     const handleSaveEntry = async () => {
@@ -82,23 +75,6 @@ const JournalPage: React.FC = () => {
                 setEntries([data[0], ...entries]);
                 setCurrentEntry(data[0]);
             }
-        }
-    };
-    
-     // New handler for analysis
-    const handleAnalyzeEntry = async () => {
-        if (!currentEntry?.content) return;
-        
-        setIsAnalyzing(true);
-        setAnalysis(null);
-        try {
-            const result = await analyzeJournalEntry(currentEntry.content);
-            setAnalysis(result);
-        } catch (error) {
-            console.error(error);
-            setAnalysis("Sorry, I couldn't analyze the entry right now.");
-        } finally {
-            setIsAnalyzing(false);
         }
     };
 
@@ -156,43 +132,26 @@ const JournalPage: React.FC = () => {
                         {/* Editor and Analysis */}
                         <section className="flex-1 flex flex-col gap-6">
                             {currentEntry ? (
-                                <>
-                                    <div className="flex-1 flex flex-col gap-4 bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200/80 dark:border-slate-800/80">
-                                        <input
-                                            type="text"
-                                            placeholder="A new day, a new thought..."
-                                            value={currentEntry.title || ''}
-                                            onChange={(e) => setCurrentEntry({ ...currentEntry, title: e.target.value })}
-                                            className="form-input w-full text-2xl font-bold bg-transparent border-0 border-b-2 border-slate-200 dark:border-slate-700 focus:ring-0 focus:border-primary p-2 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                                        />
-                                        <textarea
-                                            placeholder="Let your thoughts flow freely here. What's on your mind?"
-                                            value={currentEntry.content || ''}
-                                            onChange={(e) => setCurrentEntry({ ...currentEntry, content: e.target.value })}
-                                            className="form-textarea w-full flex-1 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary focus:border-primary p-4 text-slate-700 dark:text-slate-300 resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                                        />
-                                        <div className="flex justify-end gap-4 mt-2">
-                                            <button onClick={handleSaveEntry} disabled={!currentEntry.title} className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-opacity-90 disabled:opacity-50">
-                                                {currentEntry.id ? 'Save Changes' : 'Save Entry'}
-                                            </button>
-                                        </div>
+                                <div className="flex-1 flex flex-col gap-4 bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200/80 dark:border-slate-800/80">
+                                    <input
+                                        type="text"
+                                        placeholder="A new day, a new thought..."
+                                        value={currentEntry.title || ''}
+                                        onChange={(e) => setCurrentEntry({ ...currentEntry, title: e.target.value })}
+                                        className="form-input w-full text-2xl font-bold bg-transparent border-0 border-b-2 border-slate-200 dark:border-slate-700 focus:ring-0 focus:border-primary p-2 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                    />
+                                    <textarea
+                                        placeholder="Let your thoughts flow freely here. What's on your mind?"
+                                        value={currentEntry.content || ''}
+                                        onChange={(e) => setCurrentEntry({ ...currentEntry, content: e.target.value })}
+                                        className="form-textarea w-full flex-1 bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-primary focus:border-primary p-4 text-slate-700 dark:text-slate-300 resize-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                                    />
+                                    <div className="flex justify-end gap-4 mt-2">
+                                        <button onClick={handleSaveEntry} disabled={!currentEntry.title} className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-opacity-90 disabled:opacity-50">
+                                            {currentEntry.id ? 'Save Changes' : 'Save Entry'}
+                                        </button>
                                     </div>
-                                    {currentEntry.id && (
-                                        <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200/80 dark:border-slate-800/80">
-                                            <div className="flex justify-between items-center gap-4">
-                                                <h3 className="text-lg font-bold text-slate-900 dark:text-white">AI Reflection</h3>
-                                                <button onClick={handleAnalyzeEntry} disabled={isAnalyzing || !currentEntry.content} className="flex items-center gap-2 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 px-4 py-2 text-sm font-semibold text-purple-600 dark:text-purple-300 hover:bg-purple-500/20 dark:hover:bg-purple-500/30 transition-colors disabled:opacity-50">
-                                                    <span className="material-symbols-outlined text-base">auto_awesome</span>
-                                                    <span>{isAnalyzing ? 'Thinking...' : 'Get Reflection'}</span>
-                                                </button>
-                                            </div>
-                                            {isAnalyzing && <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">Lumyn is reflecting on your entry...</p>}
-                                            {analysis && (
-                                                <div className="mt-4 prose prose-sm prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: analysis.replace(/\n/g, '<br />') }} />
-                                            )}
-                                        </div>
-                                    )}
-                                </>
+                                </div>
                             ) : (
                                 <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-slate-900/50 p-6 rounded-xl border-2 border-dashed border-slate-300/80 dark:border-slate-700/80">
                                     <span className="material-symbols-outlined text-6xl text-slate-400 dark:text-slate-500">auto_stories</span>
