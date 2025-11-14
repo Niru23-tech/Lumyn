@@ -30,6 +30,7 @@ export interface Resource {
     description: string;
     imageUrl: string;
     link: string;
+    fullContent: string;
 }
 
 export interface Counselor {
