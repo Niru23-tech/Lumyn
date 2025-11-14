@@ -33,7 +33,7 @@ export interface Resource {
 }
 
 export interface Counselor {
-    id: string;
+    id:string;
     name: string;
     title: string; // e.g., "LPC, PhD"
     imageUrl: string;
@@ -45,4 +45,17 @@ export interface MoodLog {
     user_id: string;
     mood: number;
     created_at: string;
+}
+
+export interface Appointment {
+  id: number;
+  student_id: string;
+  counselor_id: string;
+  status: 'pending' | 'confirmed' | 'completed' | 'declined';
+  created_at: string;
+  // This is for fetching student data with the appointment
+  profiles?: {
+      full_name: string;
+      avatar_url?: string | null;
+  }
 }

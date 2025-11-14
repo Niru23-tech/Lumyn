@@ -49,7 +49,7 @@ const StudentProfile: React.FC = () => {
             if(profileError) {
                 setError(profileError.message)
             } else {
-                 setSuccess("Profile updated successfully!");
+                 setSuccess("Profile updated successfully! The page will now refresh.");
                  // update user state to reflect changes immediately
                  setUser(updatedUser);
                  // Reload to reflect changes everywhere

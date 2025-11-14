@@ -32,21 +32,33 @@ const ChatPage: React.FC = () => {
         if (error) {
           console.error("Error fetching messages:", error);
         } else if (messagesData) {
-          formattedMessages = messagesData.map(m => ({
-            id: m.id.toString(),
-            text: m.text,
-            sender: m.sender as 'user' | 'ai',
-            timestamp: new Date(m.timestamp),
-          }));
+            if (messagesData.length === 0) {
+                 // Add a default welcome message for new chats
+                formattedMessages.push({
+                    id: 'initial-welcome',
+                    text: "Hello! I'm Lumyn, your AI companion. How are you feeling today? I'm here to listen.",
+                    sender: 'ai',
+                    timestamp: new Date(),
+                });
+            } else {
+                 formattedMessages = messagesData.map(m => ({
+                    id: m.id.toString(),
+                    text: m.text,
+                    sender: m.sender as 'user' | 'ai',
+                    timestamp: new Date(m.timestamp),
+                }));
+            }
           setMessages(formattedMessages);
         }
         
         // Initialize Gemini Chat
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const history: Content[] = formattedMessages.map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'model',
-            parts: [{ text: msg.text }],
-        }));
+        const history: Content[] = formattedMessages
+            .filter(msg => msg.id !== 'initial-welcome') // Don't include the UI-only welcome message in history
+            .map(msg => ({
+                role: msg.sender === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.text }],
+            }));
 
         chatRef.current = ai.chats.create({
             model: 'gemini-2.5-flash',
@@ -77,8 +89,14 @@ const ChatPage: React.FC = () => {
         setMessages([]);
         return;
      }
-      // Optimistically clear UI, then delete from DB
-      setMessages([]);
+      const welcomeMessage = {
+          id: 'initial-welcome',
+          text: "Hello! I'm Lumyn, your AI companion. How are you feeling today? I'm here to listen.",
+          sender: 'ai',
+          timestamp: new Date(),
+      };
+      // Optimistically clear UI and add welcome message, then delete from DB
+      setMessages([welcomeMessage]);
       await supabase.from('messages').delete().eq('user_id', user.id);
       
       // Re-initialize chat

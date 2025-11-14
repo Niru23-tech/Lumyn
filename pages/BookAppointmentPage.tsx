@@ -15,14 +15,14 @@ const counselorImages = [
 
 const counselorTitles = ["PhD, LPC", "LCSW", "PsyD", "LMFT"];
 
-const CounselorCard: React.FC<{ counselor: Counselor, onBook: (name: string) => void }> = ({ counselor, onBook }) => (
+const CounselorCard: React.FC<{ counselor: Counselor, onBook: (counselor: Counselor) => void }> = ({ counselor, onBook }) => (
     <div className="bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-soft flex flex-col items-center text-center p-6 gap-4">
         <div className="size-32 rounded-full bg-cover bg-center" style={{ backgroundImage: `url(${counselor.imageUrl})` }}></div>
         <div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">{counselor.name}</h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm">{counselor.title}</p>
         </div>
-        <button onClick={() => onBook(counselor.name)} className="flex w-full mt-2 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-opacity-90 transition-opacity">
+        <button onClick={() => onBook(counselor)} className="flex w-full mt-2 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-opacity-90 transition-opacity">
             Book Session
         </button>
     </div>
@@ -33,7 +33,8 @@ const BookAppointmentPage: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [counselors, setCounselors] = useState<Counselor[]>([]);
     const [loading, setLoading] = useState(true);
-    const [bookedCounselor, setBookedCounselor] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -46,13 +47,14 @@ const BookAppointmentPage: React.FC = () => {
             }
 
             setLoading(true);
-            const { data, error } = await supabase
+            const { data, error: dbError } = await supabase
                 .from('profiles')
                 .select('id, full_name')
                 .eq('role', 'counselor');
             
-            if (error) {
-                console.error("Error fetching counselors:", error);
+            if (dbError) {
+                console.error("Error fetching counselors:", dbError);
+                setError("Could not load available counselors.");
             } else if (data) {
                 const counselorData = data.map((profile, index) => ({
                     id: profile.id,
@@ -67,9 +69,30 @@ const BookAppointmentPage: React.FC = () => {
         fetchCounselors();
     }, [navigate]);
 
-    const handleBook = (name: string) => {
-        setBookedCounselor(name);
-        setTimeout(() => setBookedCounselor(null), 4000); // Reset after 4 seconds
+    const handleBook = async (counselor: Counselor) => {
+        if (!user) {
+            setError("You must be logged in to book an appointment.");
+            return;
+        }
+
+        setError(null);
+        setSuccessMessage(null);
+
+        const { error: insertError } = await supabase
+            .from('appointments')
+            .insert({
+                student_id: user.id,
+                counselor_id: counselor.id,
+                status: 'pending'
+            });
+        
+        if (insertError) {
+            console.error("Error creating appointment:", insertError);
+            setError(`Could not send request. Please try again. (${insertError.message})`);
+        } else {
+            setSuccessMessage(`Your appointment request with ${counselor.name} has been sent. They will contact you via email to confirm a time.`);
+            setTimeout(() => setSuccessMessage(null), 5000); // Reset after 5 seconds
+        }
     };
 
     return (
@@ -99,10 +122,17 @@ const BookAppointmentPage: React.FC = () => {
                             <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-2xl mx-auto">Connect with a certified counselor. Your sessions are confidential and secure.</p>
                         </div>
                         
-                        {bookedCounselor && (
+                        {successMessage && (
                             <div className="bg-green-100 dark:bg-green-900/40 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-xl relative text-center" role="alert">
                                 <strong className="font-bold">Success! </strong>
-                                <span className="block sm:inline">Your appointment request with {bookedCounselor} has been sent. They will contact you via email to confirm a time.</span>
+                                <span className="block sm:inline">{successMessage}</span>
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-xl relative text-center" role="alert">
+                                <strong className="font-bold">Error: </strong>
+                                <span className="block sm:inline">{error}</span>
                             </div>
                         )}
                         
