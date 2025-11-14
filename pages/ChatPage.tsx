@@ -52,7 +52,7 @@ const ChatPage: React.FC = () => {
         }
         
         // Initialize Gemini Chat
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI(process.env.API_KEY!);
         const history: Content[] = formattedMessages
             .filter(msg => msg.id !== 'initial-welcome') // Don't include the UI-only welcome message in history
             .map(msg => ({
@@ -100,7 +100,7 @@ const ChatPage: React.FC = () => {
       await supabase.from('messages').delete().eq('user_id', user.id);
       
       // Re-initialize chat
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI(process.env.API_KEY!);
       chatRef.current = ai.chats.create({
         model: 'gemini-2.5-flash',
         history: [],

@@ -4,13 +4,33 @@ import { Link } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { supabase } from '../services/supabaseClient';
-import { MoodLog } from '../types';
+import { MoodLog, Appointment } from '../types';
 import MoodLoggerModal from '../components/MoodLoggerModal';
 import UserAvatar from '../components/UserAvatar';
 
+// Define a more specific type for appointments with counselor data
+interface StudentAppointment extends Omit<Appointment, 'profiles'> {
+    counselor: {
+        full_name: string;
+        avatar_url?: string | null;
+    } | null;
+}
+
+
 const processMoodData = (logs: MoodLog[]) => {
     if (!logs || logs.length === 0) {
-        return [{ name: 'Start', mood: 3 }];
+        // Provide default data for a better empty state appearance
+        const today = new Date();
+        const mockData = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            return {
+                name: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                mood: 0, // Use 0 to indicate no data, so it doesn't render a line
+            };
+        }).reverse();
+        mockData[mockData.length -1] = { name: 'Log a mood to start', mood: 3 };
+        return mockData;
     }
     // Sort logs by date to ensure the chart makes sense
     const sortedLogs = [...logs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -20,9 +40,26 @@ const processMoodData = (logs: MoodLog[]) => {
     }));
 };
 
+const AppointmentStatusBadge: React.FC<{ status: Appointment['status'] }> = ({ status }) => {
+    const baseClasses = 'px-2.5 py-1 text-xs font-semibold rounded-full inline-block';
+    switch (status) {
+        case 'pending':
+            return <span className={`${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300`}>Pending</span>;
+        case 'confirmed':
+            return <span className={`${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300`}>Confirmed</span>;
+        case 'declined':
+            return <span className={`${baseClasses} bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300`}>Declined</span>;
+        case 'completed':
+            return <span className={`${baseClasses} bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300`}>Completed</span>;
+        default:
+            return null;
+    }
+}
+
 const StudentDashboard: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
+    const [appointments, setAppointments] = useState<StudentAppointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,25 +67,34 @@ const StudentDashboard: React.FC = () => {
 
     const fetchUserData = async () => {
         setLoading(true);
+        setError(null);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             setUser(user);
 
             if (user) {
-                const { data, error: dbError } = await supabase
+                // Fetch mood logs
+                const { data: moodData, error: moodError } = await supabase
                     .from('mood_logs')
                     .select('*')
                     .eq('user_id', user.id)
                     .order('created_at', { ascending: false })
                     .limit(30);
-                
-                if (dbError) throw dbError;
-                
-                setMoodLogs(data || []);
+                if (moodError) throw moodError;
+                setMoodLogs(moodData || []);
+
+                // Fetch appointments
+                const { data: apptData, error: apptError } = await supabase
+                    .from('appointments')
+                    .select('*, counselor:counselor_id(full_name, avatar_url)')
+                    .eq('student_id', user.id)
+                    .order('created_at', { ascending: false });
+                if (apptError) throw apptError;
+                setAppointments(apptData as StudentAppointment[] || []);
             }
         } catch (err: any) {
-            console.error("Error fetching mood logs:", err.message || err);
-            setError("Could not load mood data. Please ensure your database is configured.");
+            console.error("Error fetching dashboard data:", err.message || err);
+            setError("Could not load your dashboard. Please try again later.");
         } finally {
             setLoading(false);
         }
@@ -71,7 +117,6 @@ const StudentDashboard: React.FC = () => {
             setError("Failed to save mood. Please try again.");
             console.error(error);
         } else {
-            // Refresh data to show the new mood log
             await fetchUserData();
             setIsModalOpen(false);
         }
@@ -127,20 +172,44 @@ const StudentDashboard: React.FC = () => {
 
 
                         <main className="flex flex-col gap-8 mt-4">
+                             {error && <p className="text-red-600 bg-red-100 p-3 rounded-lg -mt-4">{error}</p>}
                             <div className="flex flex-wrap justify-between gap-4 p-4 items-center">
                                 <div className="flex flex-col gap-2">
                                     <p className="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Good morning, {userName}</p>
                                     <p className="text-slate-500 dark:text-slate-400 text-base font-normal leading-normal">Remember to be kind to yourself today. We're here to support you.</p>
                                 </div>
                             </div>
+                           
+                            <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200/80 dark:border-slate-800/80">
+                                <h2 className="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">My Appointments</h2>
+                                {loading ? <p className="text-slate-500">Loading appointments...</p> : appointments.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <p className="text-slate-500 dark:text-slate-400">You have no appointments scheduled.</p>
+                                        <Link to="/book-appointment" className="mt-4 inline-block text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Book a session with a counselor →</Link>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {appointments.map(appt => (
+                                            <div key={appt.id} className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-slate-100 dark:bg-slate-800/50">
+                                                <div className="flex items-center gap-4">
+                                                    <UserAvatar avatarUrl={appt.counselor?.avatar_url} name={appt.counselor?.full_name} size="size-10"/>
+                                                    <div>
+                                                        <p className="font-semibold text-slate-800 dark:text-slate-200">{appt.counselor?.full_name || 'A Counselor'}</p>
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">Requested on {new Date(appt.created_at).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                                <AppointmentStatusBadge status={appt.status} />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
 
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <div className="lg:col-span-2 flex flex-col gap-6">
                                     <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200/80 dark:border-slate-800/80">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                            <h2 className="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">Your Mood Journey</h2>
-                                        </div>
-                                        {error && <p className="text-sm text-red-500 mt-4 -mb-2">{error}</p>}
+                                        <h2 className="text-slate-900 dark:text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">Your Mood Journey</h2>
                                         <div className="flex flex-wrap gap-4 py-6">
                                             <div className="flex w-full flex-1 flex-col gap-2">
                                                 <div className="flex min-h-[220px] flex-1 flex-col gap-8 py-4">
@@ -159,7 +228,7 @@ const StudentDashboard: React.FC = () => {
                                                                 <YAxis tick={{ fill: 'rgb(100 116 139)', fontSize: 12 }} domain={[0, 6]} ticks={[1, 2, 3, 4, 5]} axisLine={false} tickLine={false} />
                                                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(203, 213, 225, 0.2)" />
                                                                 <Tooltip contentStyle={{ backgroundColor: 'rgba(255,255,255,0.8)', border: '1px solid #ccc', borderRadius: '0.5rem' }} />
-                                                                <Area type="monotone" dataKey="mood" stroke="#306ee8" strokeWidth={3} fillOpacity={1} fill="url(#colorMood)" />
+                                                                <Area type="monotone" dataKey="mood" stroke="#306ee8" strokeWidth={3} fillOpacity={1} fill="url(#colorMood)" connectNulls={true} />
                                                             </AreaChart>
                                                         </ResponsiveContainer>
                                                     )}
@@ -207,17 +276,6 @@ const StudentDashboard: React.FC = () => {
                                             </Link>
                                         </div>
                                     </div>
-                                    <div className="bg-white dark:bg-slate-900/50 p-6 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col gap-4">
-                                        <h3 className="text-slate-900 dark:text-white text-lg font-bold">Something For You</h3>
-                                        <div className="flex flex-col gap-4">
-                                            <div className="aspect-[16/9] rounded-lg bg-cover bg-center" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuBqT83rts7Yk7FlMTSRyMEcyrsKr1rvTxF4erwZ7QM1j1ai4P1iNSvHleqOWYaOySgC2cw9bS36Lh1aND6h9ioO5MvpNYCi13f_KerWqd0ROGTkYBqBD0gk-L2H0Ev9Cn5fhWTp6eWed7SJDPxMsSbOCQ3IsHqO55tsJQzhKLRbgH63N2DdxbqqxrDcBNj0pK7JpAiCA1-r4KlTz5cFECSqOcSeORF4JIsKflHTZjX7s1A2IOS5PXl4An58hVRVIkA7Lov46lU4L0c')" }}></div>
-                                            <div className="flex flex-col gap-1">
-                                                <p className="font-semibold text-slate-800 dark:text-slate-100">5-Minute Breathing Exercise</p>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">A quick way to find your center and reduce stress before your next class.</p>
-                                            </div>
-                                            <Link to="/resources" className="text-sm font-semibold text-primary dark:text-blue-400 hover:underline">Learn More</Link>
-                                        </div>
-                                     </div>
                                 </div>
                             </div>
                         </main>

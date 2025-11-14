@@ -11,37 +11,37 @@ const mockResources: Resource[] = [
         title: 'Managing Exam Stress: A Student’s Guide',
         description: 'Learn effective strategies to cope with the pressure of exams, from study techniques to mindfulness exercises.',
         imageUrl: 'https://images.unsplash.com/photo-1434030216411-0b773f444d83?q=80&w=2070&auto=format&fit=crop',
-        link: '/'
+        link: '#!'
     },
     {
         title: 'The Importance of Sleep for Mental Health',
         description: 'Discover how a consistent sleep schedule can dramatically improve your mood, focus, and overall well-being.',
         imageUrl: 'https://images.unsplash.com/photo-1595349392359-2598730623b4?q=80&w=2070&auto=format&fit=crop',
-        link: '/'
+        link: '#!'
     },
     {
         title: 'Building Resilience in Your College Years',
         description: 'Navigate the ups and downs of student life by developing psychological resilience and a growth mindset.',
         imageUrl: 'https://images.unsplash.com/photo-1524678606370-a47625cb810c?q=80&w=2070&auto=format&fit=crop',
-        link: '/'
+        link: '#!'
     },
     {
         title: '5-Minute Mindfulness Exercises for Busy Students',
         description: 'Find calm and focus anywhere, anytime with these quick and easy mindfulness practices.',
         imageUrl: 'https://images.unsplash.com/photo-1506126613408-4e05217cc1ad?q=80&w=2070&auto=format&fit=crop',
-        link: '/'
+        link: '#!'
     },
     {
         title: 'How to Support a Friend Who Is Struggling',
         description: 'Learn how to be an effective and compassionate ally for friends facing mental health challenges.',
         imageUrl: 'https://images.unsplash.com/photo-1604881991720-f91add269bed?q=80&w=1974&auto=format&fit=crop',
-        link: '/'
+        link: '#!'
     },
     {
         title: 'Nutrition and Mental Wellness: The Brain-Food Connection',
         description: 'Explore the link between what you eat and how you feel, with tips for a brain-healthy diet.',
         imageUrl: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?q=80&w=2070&auto=format&fit=crop',
-        link: '/'
+        link: '#!'
     },
 ];
 
@@ -51,7 +51,7 @@ const ResourceCard: React.FC<{ resource: Resource }> = ({ resource }) => (
         <div className="p-6 flex flex-col flex-1">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{resource.title}</h3>
             <p className="text-slate-600 dark:text-slate-400 text-sm flex-1">{resource.description}</p>
-            <Link to={resource.link} className="text-primary dark:text-blue-400 font-semibold mt-4 inline-block hover:underline">Read More →</Link>
+            <a href={resource.link} onClick={(e) => { e.preventDefault(); alert('This feature is coming soon! This would open the full article.'); }} className="text-primary dark:text-blue-400 font-semibold mt-4 inline-block hover:underline">Read More →</a>
         </div>
     </div>
 );
@@ -84,9 +84,15 @@ const ResourcesPage: React.FC = () => {
                             <Link to="/resources" className="text-slate-900 dark:text-white text-sm font-medium">Resources</Link>
                         </div>
                         <div className="flex items-center gap-4">
-                            <Link to="/student-profile">
-                                <UserAvatar avatarUrl={user?.user_metadata?.avatar_url} name={user?.user_metadata?.full_name} size="size-10" />
-                            </Link>
+                            {user ? (
+                                <Link to="/student-profile">
+                                    <UserAvatar avatarUrl={user?.user_metadata?.avatar_url} name={user?.user_metadata?.full_name} size="size-10" />
+                                </Link>
+                            ) : (
+                                <Link to="/student-signin" className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold">
+                                    Sign In
+                                </Link>
+                            )}
                         </div>
                     </header>
                     <main className="flex flex-col gap-8 mt-4">

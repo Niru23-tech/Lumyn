@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabaseClient';
 import { JournalEntry } from '../types';
@@ -10,6 +11,7 @@ const JournalPage: React.FC = () => {
     const [entries, setEntries] = useState<JournalEntry[]>([]);
     const [currentEntry, setCurrentEntry] = useState<Partial<JournalEntry> | null>(null);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -36,6 +38,16 @@ const JournalPage: React.FC = () => {
         };
         fetchUserAndEntries();
     }, [navigate]);
+    
+    const filteredEntries = useMemo(() => {
+        if (!searchQuery) {
+            return entries;
+        }
+        return entries.filter(entry =>
+            entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            entry.content.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [entries, searchQuery]);
 
     const handleSelectEntry = (entry: JournalEntry) => {
         setCurrentEntry(entry);
@@ -109,14 +121,26 @@ const JournalPage: React.FC = () => {
                                     <span>New</span>
                                 </button>
                             </div>
+                            <div className="relative">
+                               <span className="material-symbols-outlined absolute top-1/2 -translate-y-1/2 left-3 text-slate-400">search</span>
+                               <input
+                                   type="text"
+                                   placeholder="Search entries..."
+                                   value={searchQuery}
+                                   onChange={(e) => setSearchQuery(e.target.value)}
+                                   className="form-input w-full rounded-lg border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 px-4 py-2 pl-10 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:border-primary focus:ring-primary"
+                               />
+                            </div>
                             <div className="bg-white dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex-1 overflow-y-auto">
                                 {loading ? (
                                     <p className="text-slate-500 p-4 text-center">Loading entries...</p>
-                                ) : entries.length === 0 ? (
-                                    <p className="text-slate-500 text-center py-8 px-4">No entries yet. Start by creating a new one.</p>
+                                ) : filteredEntries.length === 0 ? (
+                                    <p className="text-slate-500 text-center py-8 px-4">
+                                        {searchQuery ? `No entries found for "${searchQuery}".` : "No entries yet. Start by creating a new one."}
+                                    </p>
                                 ) : (
                                     <ul className="space-y-1">
-                                        {entries.map(entry => (
+                                        {filteredEntries.map(entry => (
                                             <li key={entry.id}>
                                                 <button onClick={() => handleSelectEntry(entry)} className={`w-full text-left p-3 rounded-lg transition-colors ${currentEntry?.id === entry.id ? 'bg-primary/10 dark:bg-primary/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                                                     <h3 className="font-semibold text-slate-800 dark:text-slate-200 truncate">{entry.title}</h3>

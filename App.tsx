@@ -15,6 +15,7 @@ import JournalPage from './pages/JournalPage';
 import ResourcesPage from './pages/ResourcesPage';
 import BookAppointmentPage from './pages/BookAppointmentPage';
 import CounselorStudentChatView from './pages/CounselorStudentChatView';
+import CounselorStudentJournalView from './pages/CounselorStudentJournalView';
 import { supabase } from './services/supabaseClient';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -99,6 +100,7 @@ const App: React.FC = () => {
         {/* Protected Counselor Routes */}
         <Route path="/counselor-dashboard" element={<ProtectedRoute requiredRole="counselor" redirectTo="/counselor-signin"><CounselorDashboard /></ProtectedRoute>} />
         <Route path="/counselor/student-chat/:studentId" element={<ProtectedRoute requiredRole="counselor" redirectTo="/counselor-signin"><CounselorStudentChatView /></ProtectedRoute>} />
+        <Route path="/counselor/student-journal/:studentId" element={<ProtectedRoute requiredRole="counselor" redirectTo="/counselor-signin"><CounselorStudentJournalView /></ProtectedRoute>} />
       </Routes>
     </HashRouter>
   );

@@ -12,7 +12,6 @@ const CounselorDashboard: React.FC = () => {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [view, setView] = useState<'dashboard' | 'students'>('dashboard');
 
     const fetchData = useCallback(async (currentUser: User) => {
         setLoading(true);
@@ -81,7 +80,7 @@ const CounselorDashboard: React.FC = () => {
     const upcomingAppointments = appointments.filter(a => a.status === 'confirmed');
 
     const StatCard: React.FC<{ icon: string, value: number, label: string, color: string }> = ({ icon, value, label, color }) => (
-        <div className="flex-1 bg-white dark:bg-neutral-dark/40 p-6 rounded-xl shadow-soft flex items-center gap-5 border border-neutral-light dark:border-neutral-dark/80">
+        <div className="flex-1 bg-white dark:bg-neutral-dark/40 p-6 rounded-xl shadow-soft flex items-center gap-5 border border-neutral-light dark:border-neutral-dark/80 min-w-[200px]">
             <div className={`flex items-center justify-center size-12 rounded-full ${color}`}>
                 <span className="material-symbols-outlined text-2xl">{icon}</span>
             </div>
@@ -123,7 +122,7 @@ const CounselorDashboard: React.FC = () => {
                             <div className="lg:col-span-2 flex flex-col gap-6">
                                 <h2 className="text-xl font-bold text-text-light dark:text-text-dark">Appointment Requests</h2>
                                 <div className="bg-white dark:bg-neutral-dark/40 rounded-xl shadow-soft border border-neutral-light dark:border-neutral-dark/80 p-4 space-y-4">
-                                    {loading ? <p>Loading requests...</p> : pendingAppointments.length === 0 ? (
+                                    {loading ? <p className="text-center p-4">Loading requests...</p> : pendingAppointments.length === 0 ? (
                                         <p className="text-text-muted-light dark:text-text-muted-dark text-center py-8">No pending appointment requests.</p>
                                     ) : (
                                         pendingAppointments.map(appt => (
@@ -147,7 +146,7 @@ const CounselorDashboard: React.FC = () => {
                             <div className="lg:col-span-1 flex flex-col gap-6">
                                 <h2 className="text-xl font-bold text-text-light dark:text-text-dark">Upcoming Sessions</h2>
                                 <div className="bg-white dark:bg-neutral-dark/40 rounded-xl shadow-soft border border-neutral-light dark:border-neutral-dark/80 p-4 space-y-3">
-                                   {loading ? <p>Loading sessions...</p> : upcomingAppointments.length === 0 ? (
+                                   {loading ? <p className="text-center p-4">Loading sessions...</p> : upcomingAppointments.length === 0 ? (
                                         <p className="text-text-muted-light dark:text-text-muted-dark text-center py-8">No upcoming sessions.</p>
                                     ) : (
                                         upcomingAppointments.map(appt => (
@@ -155,7 +154,7 @@ const CounselorDashboard: React.FC = () => {
                                                 <UserAvatar avatarUrl={appt.profiles?.avatar_url} name={appt.profiles?.full_name} size="size-10" />
                                                 <div>
                                                     <p className="font-semibold text-text-light dark:text-text-dark">{appt.profiles?.full_name}</p>
-                                                    <p className="text-sm text-text-muted-light dark:text-text-muted-dark">Confirmed for next week</p>
+                                                    <p className="text-sm text-text-muted-light dark:text-text-muted-dark">To be scheduled via email</p>
                                                 </div>
                                             </div>
                                         ))
@@ -166,22 +165,25 @@ const CounselorDashboard: React.FC = () => {
 
                          <div className="flex flex-col gap-6">
                              <h2 className="text-xl font-bold text-text-light dark:text-text-dark">All Students</h2>
-                             <div className="bg-white dark:bg-neutral-dark/40 rounded-xl shadow-soft border border-neutral-light dark:border-neutral-dark/80 overflow-hidden">
-                                <table className="w-full text-left">
+                             <div className="bg-white dark:bg-neutral-dark/40 rounded-xl shadow-soft border border-neutral-light dark:border-neutral-dark/80 overflow-x-auto">
+                                <table className="w-full text-left min-w-[600px]">
                                     <thead>
-                                        <tr className="bg-c-background-light dark:bg-neutral-dark/50"><th className="p-4 font-medium">Student</th><th className="p-4 font-medium">Actions</th></tr>
+                                        <tr className="bg-c-background-light dark:bg-neutral-dark/50"><th className="p-4 font-semibold text-text-light dark:text-text-dark">Student</th><th className="p-4 font-semibold text-text-light dark:text-text-dark">Actions</th></tr>
                                     </thead>
                                     <tbody>
-                                        {loading ? <tr><td colSpan={2} className="text-center p-4">Loading...</td></tr> : students.map(student => (
+                                        {loading ? <tr><td colSpan={2} className="text-center p-4 text-text-muted-light">Loading...</td></tr> : students.map(student => (
                                             <tr key={student.id} className="border-t border-neutral-light dark:border-neutral-dark">
                                                 <td className="p-4">
                                                     <div className="flex items-center gap-4">
                                                         <UserAvatar avatarUrl={student.avatar_url} name={student.name} size="size-10" />
-                                                        <span className="font-semibold">{student.name}</span>
+                                                        <span className="font-semibold text-text-light dark:text-text-dark">{student.name}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <Link to={`/counselor/student-chat/${student.id}`} className="px-4 py-2 text-sm font-bold bg-c-primary text-white rounded-lg hover:bg-opacity-90 transition">View Chat</Link>
+                                                    <div className="flex items-center gap-2">
+                                                        <Link to={`/counselor/student-chat/${student.id}`} className="px-3 py-2 text-sm font-bold bg-c-primary text-white rounded-lg hover:bg-opacity-90 transition inline-flex items-center gap-2"><span className="material-symbols-outlined !text-base">chat</span>Chat</Link>
+                                                        <Link to={`/counselor/student-journal/${student.id}`} className="px-3 py-2 text-sm font-bold bg-slate-200 dark:bg-slate-600 text-text-light dark:text-text-dark rounded-lg hover:bg-slate-300 transition inline-flex items-center gap-2"><span className="material-symbols-outlined !text-base">auto_stories</span>Journal</Link>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
